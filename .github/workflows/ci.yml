@@ -1,19 +1,15 @@
-# This starter workflow is for a CMake project running on a single platform. There is a different starter workflow if you need cross-platform coverage.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-multi-platform.yml
-name: Run tests
+name: Run CI
 
 on:
-  push:
-    branches: [ "main", "develop" ]
   pull_request:
     branches: [ "main" ]
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Debug
 
 jobs:
   build_and_test:
+    name: Build and test
     runs-on: ubuntu-latest
 
     steps:
@@ -53,7 +49,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # ... Generate LCOV files or download it from a different job
     - name: Setup LCOV
       uses: hrishikesh-kadam/setup-lcov@v1
 
@@ -70,3 +65,22 @@ jobs:
         artifact-name: code-coverage-report
         github-token: ${{ secrets.GITHUB_TOKEN }}
         update-comment: true
+
+
+  static_analyzer:
+    name: cppcheck (Static Analyzer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+          
+      - name: cppcheck
+        uses: deep5050/cppcheck-action@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN}}
+          output_file: ${{github.workspace}}/cppcheck-results.txt
+          other_options: '-Isrc'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-results.txt
+          path: ${{github.workspace}}/cppcheck-results.txt
