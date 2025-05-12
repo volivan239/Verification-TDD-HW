@@ -1,6 +1,17 @@
 #pragma once
 #include <stdexcept>
 
+class NoSuchElementException : public std::runtime_error {
+public:
+    NoSuchElementException(): runtime_error("No such element") {}
+};
+
+class StorageOverflowException : public std::runtime_error {
+public:
+    StorageOverflowException(): runtime_error("No space left in storage") {}
+};
+
+
 template <typename KeyT, typename ValueT>
 class Storage {
 private:
@@ -34,7 +45,8 @@ public:
             }
             i = (i + 1) % N;
         } while (i != num);
-        assert(false);
+        
+        throw StorageOverflowException();
     }
 
     ValueT load(KeyT key) {
@@ -45,11 +57,12 @@ public:
                 return storage[i].value;
             }
             if (!storage[i].used) {
-                assert(false);
+                throw NoSuchElementException();
             }
             i = (i + 1) % N;
         } while (i != num);
-        assert(false);
+        
+        throw NoSuchElementException();
     }
 
     bool updateIfEquals(KeyT key, ValueT oldValue, ValueT newValue) {
@@ -60,14 +73,4 @@ public:
     ~Storage() {
         delete[] storage;
     }
-};
-
-class NoSuchElementException : public std::runtime_error {
-public:
-    NoSuchElementException(): runtime_error("No such element") {}
-};
-
-class StorageOverflowException : public std::runtime_error {
-public:
-    StorageOverflowException(): runtime_error("No space left in storage") {}
 };
