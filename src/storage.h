@@ -74,6 +74,9 @@ public:
         cache = new StorageCell[K];
     }
 
+    Storage(const Storage &other) = delete;
+    Storage &operator = (const Storage &other) = delete;
+
     void store(KeyT key, ValueT value) {
         int i = std::hash<KeyT>{}(key) % K;
         std::unique_lock lock(cache[i].m);
