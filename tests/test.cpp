@@ -20,3 +20,20 @@ TEST(SingleThreadStorageTest, OverwriteTest) {
 
   EXPECT_EQ(9, storage.load("hello"));
 }
+
+TEST(SingleThreadStorageTest, NoSuchElementTest) {
+  Storage<std::string, int> storage(1000, 10);
+
+  storage.store("hello", 2);
+
+  EXPECT_THROW(storage.load("world"), NoSuchElementException);
+}
+
+TEST(SingleThreadStorageTest, StorageOverflowTest) {
+  Storage<std::string, int> storage(2, 2);
+
+  storage.store("hello", 2);
+  storage.store("world", 3);
+
+  EXPECT_THROW(storage.store("!", 4), StorageOverflowException);
+}

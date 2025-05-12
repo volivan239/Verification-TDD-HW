@@ -1,4 +1,5 @@
 #pragma once
+#include <stdexcept>
 
 template <typename KeyT, typename ValueT>
 class Storage {
@@ -59,4 +60,14 @@ public:
     ~Storage() {
         delete[] storage;
     }
+};
+
+class NoSuchElementException : public std::runtime_error {
+public:
+    NoSuchElementException(): runtime_error("No such element") {}
+};
+
+class StorageOverflowException : public std::runtime_error {
+public:
+    StorageOverflowException(): runtime_error("No space left in storage") {}
 };
