@@ -18,7 +18,7 @@ private:
     struct StorageCell {
         KeyT key;
         ValueT value;
-        bool used;
+        bool used = false;
     };
 
     int N, K;
@@ -33,14 +33,14 @@ public:
         int num = std::hash<KeyT>{}(key) % N;
         int i = num;
         do {
-            if (storage[i].key == key) {
-                storage[i].value = value;
-                return;
-            }
             if (!storage[i].used) {
                 storage[i].key = key;
                 storage[i].value = value;
                 storage[i].used = true;
+                return;
+            }
+            if (storage[i].key == key) {
+                storage[i].value = value;
                 return;
             }
             i = (i + 1) % N;
@@ -53,11 +53,11 @@ public:
         int num = std::hash<KeyT>{}(key) % N;
         int i = num;
         do {
-            if (storage[i].key == key) {
-                return storage[i].value;
-            }
             if (!storage[i].used) {
                 throw NoSuchElementException();
+            }
+            if (storage[i].key == key) {
+                return storage[i].value;
             }
             i = (i + 1) % N;
         } while (i != num);
