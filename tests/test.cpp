@@ -47,6 +47,16 @@ TEST(SingleThreadStorageTest, DefaultValueKeyTest) {
   EXPECT_THROW(storage.load(""), NoSuchElementException);
 }
 
+TEST(SingleThreadStorageTest, UpdateIfEqualsTest) {
+  Storage<std::string, int> storage(2, 2);
+
+  storage.store("abc", 0);
+  EXPECT_EQ(storage.updateIfEquals("abc", 0, 1), true);
+  EXPECT_EQ(storage.updateIfEquals("abc", 0, 2), false);
+  EXPECT_EQ(storage.updateIfEquals("", 0, 0), false);
+  EXPECT_EQ(storage.load("abc"), 1);
+}
+
 
 TEST(MultiThreadedTest, MultiThreadedLoad) {
   const int N = 100;
@@ -97,4 +107,35 @@ TEST(MultiThreadedTest, MultiThreadedStoreDifferentKeysHeavy) {
   for (int i = 0; i < N; i++) {
     EXPECT_EQ(storage.load(1ll * i * i), i);
   }
+}
+
+TEST(MultiThreadedTest, MultiThreadedUpdateIfEqualsHeavy) {
+  const int N = 10000;
+  pthread_t threads[N];
+
+  Storage<int, int> storage(10, 10);
+
+  UpdateIfEqualsTask<int, int> tasks[N];
+  storage.store(0, 0);
+  for (int i = 0; i < N; i++) {
+    tasks[i] = {&storage, 0, i & 1, 1 - (i & 1), false};
+    pthread_create(threads + i, NULL, updateIfEquals<int, int>, tasks + i);
+  }
+  for (int i = 0; i < N; i++) {
+    pthread_join(threads[i], NULL);
+  }
+  int success_0_to_1 = 0;
+  int success_1_to_0 = 0;
+
+  for (int i = 0; i < N; i++) {
+    if (tasks[i].result) {
+      if (i & 1) {
+        success_1_to_0++;
+      } else {
+        success_0_to_1++;
+      }
+    }
+  }
+  EXPECT_EQ(success_1_to_0 - success_0_to_1, storage.load(0));
+  EXPECT_GE(success_0_to_1 + success_1_to_0, N / 100);
 }

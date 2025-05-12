@@ -30,3 +30,20 @@ void *storeNoExcept(void *data) {
     EXPECT_NO_THROW(task->storage->store(task->key, task->value));
     return nullptr;
 }
+
+
+template <typename KeyT, typename ValueT>
+struct UpdateIfEqualsTask {
+    Storage<KeyT, ValueT> *storage;
+    KeyT key;
+    ValueT oldValue;
+    ValueT newValue;
+    bool result;
+};
+
+template <typename KeyT, typename ValueT>
+void *updateIfEquals(void *data) {
+    UpdateIfEqualsTask<KeyT, ValueT> *task = (UpdateIfEqualsTask<KeyT, ValueT> *) (data);
+    task->result = task->storage->updateIfEquals(task->key, task->oldValue, task->newValue);
+    return nullptr;
+}
