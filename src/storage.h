@@ -26,13 +26,10 @@ private:
 
     int N, K;
     StorageCell *storage;
+    StorageCell *cache;
 
-public:
-    Storage(int N, int K): N(N), K(K) {
-        storage = new StorageCell[N];
-    }
-
-    void store(KeyT key, ValueT value) {
+private:
+    void storeToMainStorage(KeyT key, ValueT value) {
         int num = std::hash<KeyT>{}(key) % N;
         int i = num;
         do {
@@ -53,50 +50,106 @@ public:
         throw StorageOverflowException();
     }
 
-    ValueT load(KeyT key) {
+    bool loadFromMainStorage(KeyT key, ValueT *value) {
         int num = std::hash<KeyT>{}(key) % N;
         int i = num;
         do {
             std::shared_lock lock(storage[i].m);
             if (!storage[i].used) {
-                throw NoSuchElementException();
+                return false;
             }
             if (storage[i].key == key) {
-                return storage[i].value;
+                *value = storage[i].value;
+                return true;
             }
             i = (i + 1) % N;
         } while (i != num);
         
-        throw NoSuchElementException();
+        return false;
+    }
+
+public:
+    Storage(int N, int K): N(N), K(K) {
+        storage = new StorageCell[N];
+        cache = new StorageCell[K];
+    }
+
+    void store(KeyT key, ValueT value) {
+        int i = std::hash<KeyT>{}(key) % K;
+        std::unique_lock lock(cache[i].m);
+        if (cache[i].used && cache[i].key != key) {
+            // Flush old key-value pair to main storage
+            storeToMainStorage(cache[i].key, cache[i].value);
+        }
+
+        // Updating cache with new key-value pair
+        cache[i].used = true;
+        cache[i].key = key;
+        cache[i].value = value;
+    }
+
+    ValueT load(KeyT key) {
+        int i = std::hash<KeyT>{}(key) % K;
+        std::shared_lock lock(cache[i].m);
+        if (cache[i].used && cache[i].key == key) {
+            // Easy win, load from cache
+            return cache[i].value;
+        }
+        lock.unlock();
+        std::unique_lock ulock(cache[i].m);
+        if (cache[i].used) {
+            if (cache[i].key == key) {
+                // Someone loaded our key to cache, easy win now
+                return cache[i].value; 
+            }
+            // Flush old key-value pair to main storage 
+            storeToMainStorage(cache[i].key, cache[i].value);
+        }
+
+        ValueT value;
+        if (!loadFromMainStorage(key, &value)) {
+            throw NoSuchElementException();
+        }
+
+        // Saving key-value pair to cache
+        cache[i].used = 1;
+        cache[i].key = key;
+        cache[i].value = value;
+        return value;
     }
 
     bool updateIfEquals(KeyT key, ValueT oldValue, ValueT newValue) {
-        int num = std::hash<KeyT>{}(key) % N;
-        int i = num;
-        do {
-            std::shared_lock lock(storage[i].m);
-            if (!storage[i].used) {
-                return false; // key not found
+        int i = std::hash<KeyT>{}(key) % K;
+        std::unique_lock lock(cache[i].m);
+        if (cache[i].used && cache[i].key == key) {
+            // Easy win
+            if (cache[i].value == oldValue) {
+                // Just update cache
+                cache[i].value = newValue;
+                return true; 
             }
-            if (storage[i].key == key) { // Check that i-th cell is suitable
-                if (storage[i].value != oldValue) {
-                    return false; // value differs from oldValue
-                }
-                lock.unlock();
-                std::unique_lock ulock(storage[i].m);
-                if (storage[i].value == oldValue) { // Re-check after acquiring unique lock
-                    storage[i].value = newValue;
-                    return true;
-                } else {
-                    return false; // value differs from oldValue
-                }
-            }
-            i = (i + 1) % N;
-        } while (i != num);
-        return false;
+            return false;
+        }
+
+        ValueT realOldValue;
+        if (!loadFromMainStorage(key, &realOldValue)) {
+            // No such element
+            return false;
+        }
+
+        if (cache[i].used) {
+            // Flush cached key-value pair to memory
+            storeToMainStorage(cache[i].key, cache[i].value);
+        }
+
+        cache[i].used = true;
+        cache[i].key = key;
+        cache[i].value = (realOldValue == oldValue) ? newValue : realOldValue;
+        return realOldValue == oldValue;
     }
 
     ~Storage() {
         delete[] storage;
+        delete[] cache;
     }
 };
