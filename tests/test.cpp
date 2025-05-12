@@ -36,4 +36,11 @@ TEST(SingleThreadStorageTest, StorageOverflowTest) {
   storage.store("world", 3);
 
   EXPECT_THROW(storage.store("!", 4), StorageOverflowException);
+  EXPECT_THROW(storage.load("!"), NoSuchElementException);
+}
+
+TEST(SingleThreadStorageTest, DefaultValueKeyTest) {
+  Storage<std::string, int> storage(2, 2);
+
+  EXPECT_THROW(storage.load(""), NoSuchElementException);
 }
