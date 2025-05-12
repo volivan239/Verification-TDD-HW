@@ -64,7 +64,7 @@ TEST(MultiThreadedTest, MultiThreadedLoad) {
   }
 }
 
-TEST(MultiThreadedTest, MultiThreadedStore) {
+TEST(MultiThreadedTest, MultiThreadedStoreSameKey) {
   const int N = 100;
   pthread_t threads[N];
 
@@ -78,4 +78,23 @@ TEST(MultiThreadedTest, MultiThreadedStore) {
     pthread_join(threads[i], NULL);
   }
   EXPECT_EQ(storage.load("abc"), 2);
+}
+
+TEST(MultiThreadedTest, MultiThreadedStoreDifferentKeysHeavy) {
+  const int N = 100000;
+  pthread_t threads[N];
+
+  Storage<int, int> storage(N, 100);
+
+  StoreNoExceptTask<int, int> tasks[N];
+  for (int i = 0; i < N; i++) {
+    tasks[i] = {&storage, i * i, i};
+    pthread_create(threads + i, NULL, storeNoExcept<int, int>, tasks + i);
+  }
+  for (int i = 0; i < N; i++) {
+    pthread_join(threads[i], NULL);
+  }
+  for (int i = 0; i < N; i++) {
+    EXPECT_EQ(storage.load(i * i), i);
+  }
 }
