@@ -71,7 +71,28 @@ public:
     }
 
     bool updateIfEquals(KeyT key, ValueT oldValue, ValueT newValue) {
-        // TODO
+        int num = std::hash<KeyT>{}(key) % N;
+        int i = num;
+        do {
+            std::shared_lock lock(storage[i].m);
+            if (!storage[i].used) {
+                return false; // key not found
+            }
+            if (storage[i].key == key) { // Check that i-th cell is suitable
+                if (storage[i].value != oldValue) {
+                    return false; // value differs from oldValue
+                }
+                lock.unlock();
+                std::unique_lock ulock(storage[i].m);
+                if (storage[i].value == oldValue) { // Re-check after acquiring unique lock
+                    storage[i].value = newValue;
+                    return true;
+                } else {
+                    return false; // value differs from oldValue
+                }
+            }
+            i = (i + 1) % N;
+        } while (i != num);
         return false;
     }
 
