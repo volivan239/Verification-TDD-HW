@@ -32,13 +32,13 @@ TEST(SingleThreadStorageTest, NoSuchElementTest) {
 }
 
 TEST(SingleThreadStorageTest, StorageOverflowTest) {
-  Storage<std::string, int> storage(2, 2);
+  Storage<std::string, int> storage(2, 1);
 
   storage.store("hello", 2);
   storage.store("world", 3);
 
-  EXPECT_THROW(storage.store("!", 4), StorageOverflowException);
-  EXPECT_THROW(storage.load("!"), NoSuchElementException);
+  EXPECT_NO_THROW(storage.store("!", 4)); // This should be written to cache
+  EXPECT_THROW(storage.store("!!", 5), StorageOverflowException); // Exception thrown at cache flushing
 }
 
 TEST(SingleThreadStorageTest, DefaultValueKeyTest) {
