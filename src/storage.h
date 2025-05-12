@@ -1,5 +1,6 @@
 #pragma once
 #include <stdexcept>
+#include <shared_mutex>
 
 class NoSuchElementException : public std::runtime_error {
 public:
@@ -19,6 +20,8 @@ private:
         KeyT key;
         ValueT value;
         bool used = false;
+
+        std::shared_mutex m;
     };
 
     int N, K;
@@ -33,15 +36,16 @@ public:
         int num = std::hash<KeyT>{}(key) % N;
         int i = num;
         do {
-            if (!storage[i].used) {
-                storage[i].key = key;
-                storage[i].value = value;
-                storage[i].used = true;
-                return;
-            }
-            if (storage[i].key == key) {
-                storage[i].value = value;
-                return;
+            std::shared_lock lock(storage[i].m);
+            if (!storage[i].used || storage[i].key == key) { // Check that i-th cell is suitable
+                lock.unlock();
+                std::unique_lock ulock(storage[i].m);
+                if (!storage[i].used || storage[i].key == key) { // Re-check after acquiring unique lock
+                    storage[i].key = key;
+                    storage[i].value = value;
+                    storage[i].used = true;
+                    return;
+                }
             }
             i = (i + 1) % N;
         } while (i != num);
@@ -53,6 +57,7 @@ public:
         int num = std::hash<KeyT>{}(key) % N;
         int i = num;
         do {
+            std::shared_lock lock(storage[i].m);
             if (!storage[i].used) {
                 throw NoSuchElementException();
             }

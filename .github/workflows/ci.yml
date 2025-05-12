@@ -104,7 +104,7 @@ jobs:
 
     - name: Test
       working-directory: ${{github.workspace}}/build_tsan
-      run: ctest
+      run: ctest --rerun-failed --output-on-failure
 
 
   coverage_report:
